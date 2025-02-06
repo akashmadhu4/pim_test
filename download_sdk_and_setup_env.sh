@@ -15,8 +15,6 @@ if [ ! -d "$DIR_NAME" ]; then
     rm upmem-2025.1.0-Linux-x86_64.tar.gz
 fi
 
-# Change to the directory
-cd ./$DIR_NAME
 
 # Source the environment script
-source ./upmem_env.sh
+source ./$DIR_NAME/upmem_env.sh
