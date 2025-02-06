@@ -15,6 +15,37 @@ git submodule update --init
 source ./download_sdk_and_setup_env.sh
 ```
 
+## 2 Benchmark dive-in
+
+### 2.1 BFS 
+
+It turns out that BFS is one of the two benchmark examples that pay huge overhead of inter-DPU synchronization via the host CPU.
+
+There are two level of synchronizations:
+
+- At the host CPU level, it broadcasts the complete current frontier to all the DPUs and distributes vertices for future visit evenly. Then CPU retrives the next frontier produced by each DPU and compute the complete next frontier by union. So each level of vertice visiting is **synchronized** at the host CPU.
+- At the DPU level, when executing one level of vertice visiting, vertices in the current frontier belonged to current DPU are assigned to different tasklets evenly and they do the next step visiting concurrently. After every tasklet has finished, then the DPU merge the node they visited and the next frontier. So each level of vertice visiting inside DPU is **synchronized** at the DPU.
+
+To run BFS via host program
+
+```shell
+cd prim-benchmarks/BFS
+NR_DPUS=32 NR_TASKLETS=16 make all 
+./bin/host_code -v 0 -f ./data/loc-gowalla_edges.txt 
+```
+
+To run BFS using the python script, which automatically test using different DPU and tasklet settings
+
+```shell
+cd prim-benchmarks
+# run_strong can directly run, as it tests a fixed workload with different level of DPU resources. The fixed workload has been provided
+python run_strong_rank.py
+# you need to generate matGraph at first and then properly configure the file path
+# https://github.com/cmuparlay/pbbsbench/blob/master/testData/graphData/rMatGraph.C
+# run weak sims to increase workload with more resource given, so different level of input should be provided - which is not given by the suite
+python3 run_weak.py BFS
+```
+
 ## 3 Something else 
 
 ### 3.1 UPMEM 2025 SDK is not good to use with the benchmark 
