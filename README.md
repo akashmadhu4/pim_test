@@ -26,6 +26,8 @@ git submodule update --init
 source ./download_sdk_and_setup_env.sh
 
 # after this, UPMEM SDK commandline tools, e.g., dpu-upmem-dpurte-clang and dpu-lldb should be available.
+
+# [WARNING]: Now those environment variables are not persisted. Each new session needs reexecution of `source ./download_sdk_and_setup_env.sh`
 ```
 
 ## 2 Demo code
