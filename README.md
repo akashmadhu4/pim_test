@@ -97,7 +97,7 @@ tasklet 10: i = 12
 tasklet 11: i = 12
 ```
 
-### 2.3 Global variable updatge synchronized 
+### 2.3 Global variable update synchronized 
 
 To solve the above problem, we use mutex provided by UPMEM SDK to synchronize the code block updateing `i` and print its value.
 
