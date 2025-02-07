@@ -150,13 +150,17 @@ NR_DPUS=32 NR_TASKLETS=16 make all
 ./bin/host_code -v 0 -f ./data/loc-gowalla_edges.txt 
 ```
 
-To run BFS using the python script. The python script is making experienments with different number of tasklets and DPUs settings.
+To run BFS using the python script, you need to modify the `rootdir` variable in the script to be the absolute path to the `prim-benchmarks` directory on your machine. The python script is making experienments with different number of tasklets and DPUs settings.
 
 ```shell
 cd prim-benchmarks
 
+# update rootdir in run_strong_rank.py
+
 # run_strong can directly run, as it tests a fixed workload with different level of DPU resources. The fixed workload has been provided
 python run_strong_rank.py
+
+# you can see the result at the `./prim-benchmarks/BFS/profile/` directory
 
 # you need to generate matGraph at first and then properly configure the file path
 # https://github.com/cmuparlay/pbbsbench/blob/master/testData/graphData/rMatGraph.C
