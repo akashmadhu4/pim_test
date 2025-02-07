@@ -1,23 +1,139 @@
 # PIM TEST
 
+The directory structure:
+
+- download_sdk_and_setup_env.sh: the UPMEM SDK setup script for Ubuntu 22.04 LTS - x86_64
+- demos: simple example of UPMEM code
+- prim-benchmarks: the folder contains benchmark code for some demo UPMEM code. It is a good material to learn how to write UPMEM code and how to evaluate the performance
+
+
 ## 1 Setup 
 
 ```sh
-# after clone this repo
+# clone this repo
+git clone https://github.com/LangInteger/pim_test.git
 
-# pull submodule - the benchmarks
+# pull submodule - the benchmarks repo
+# originally at: https://github.com/CMU-SAFARI/prim-benchmarks for paper "Benchmarking Memory-centric Computing Systems: Analysis of Real Processing-in-Memory Hardware"
+# forked at https://github.com/LangInteger/prim-benchmarks
 git submodule update --init
 
 # for future submodule update
 # git submodule update --recursive --remote
 
 # download UPMEM SDK and setup env
+# use source instead of bash to make env virables valid
 source ./download_sdk_and_setup_env.sh
+
+# after this, UPMEM SDK commandline tools, e.g., dpu-upmem-dpurte-clang and dpu-lldb should be available.
 ```
 
-## 2 Benchmark dive-in
+## 2 Demo code
 
-### 2.1 BFS 
+Go to the `demos` directory at first.
+
+```sh
+cd ./demos 
+```
+
+### 2.1 Hello world
+
+Compile `helloworld.c` and run it solely (just as run it on a DPU).
+
+```sh 
+# compile 
+dpu-upmem-dpurte-clang -DNR_TASKLETS=12 -o helloworld helloworld.c 
+# enter dpu-lldb
+dpu-lldb
+# run the helloworld program inside dpu-lldb 
+file helloworld
+process launch
+# exit dpu-lldb
+exit
+```
+
+You will see "Hello World!" is printed. It is printed for 12 times because we compile with parameter `-DNR_TASKLETS=12`, so there will be 12 tasklets executing the same code in the same DPU.
+
+`dpu-lldb` is for debug purpose. Real world DPU program is executed by host program. In `helloworld_host.c`, we specified how many DPU we want to use, and explictly specify `helloworld` is the program for DPU to execute. We can compile the host code and run it.
+
+```sh
+# compile 
+gcc --std=c99 helloworld_host.c -o helloworld_host `dpu-pkg-config --cflags --libs dpu`
+# execute host program 
+./helloworld_host
+```
+
+We specified two DPU in the host program, so you will see "Hello World!" is printed for 24 times in total.
+
+### 2.2 Global variable update
+
+In DPU program, the global variable is stored on memory shared by all the tasklets. Update operation on global variables leads to race condition and give unexpected result.
+
+The `global_var.c` is a DPU program that will increase the global variable `i` (initially zero) by one and then print the updated value. The corresponding host program starts one DPU to execute `global_var`.
+
+```sh 
+# compile 
+dpu-upmem-dpurte-clang -DNR_TASKLETS=12 -o global_var global_var.c 
+gcc --std=c99 global_var_host.c -o global_var_host `dpu-pkg-config --cflags --libs dpu`
+# execute 
+./global_var_host
+```
+
+With the above commands, the ideal output is that each tasklet print the value of `i` from 1 to 12, as there are exactly 12 tasklet. However, due to the race condition mentioned above, the output is more random. In my test, it is:
+
+```text
+=== DPU#0x0 ===
+tasklet 0: i = 2
+tasklet 1: i = 3
+tasklet 2: i = 4
+tasklet 3: i = 5
+tasklet 4: i = 6
+tasklet 5: i = 7
+tasklet 6: i = 8
+tasklet 7: i = 9
+tasklet 8: i = 10
+tasklet 9: i = 11
+tasklet 10: i = 12
+tasklet 11: i = 12
+```
+
+### 2.3 Global variable updatge synchronized 
+
+To solve the above problem, we use mutex provided by UPMEM SDK to synchronize the code block updateing `i` and print its value.
+
+```sh 
+# compile 
+dpu-upmem-dpurte-clang -DNR_TASKLETS=12 -o global_var_ordered global_var_ordered.c 
+gcc --std=c99 global_var_ordered_host.c -o global_var_ordered_host `dpu-pkg-config --cflags --libs dpu`
+# execute 
+./global_var_ordered_host
+```
+
+With the above updated code, now the output is as expected:
+
+```text
+=== DPU#0x0 ===
+tasklet 0: i = 1
+tasklet 1: i = 2
+tasklet 2: i = 3
+tasklet 3: i = 4
+tasklet 4: i = 5
+tasklet 5: i = 6
+tasklet 6: i = 7
+tasklet 7: i = 8
+tasklet 8: i = 9
+tasklet 9: i = 10
+tasklet 10: i = 11
+tasklet 11: i = 12
+```
+
+## 3 Benchmark dive-in
+
+### 3.1 BFS 
+
+- directory: `./prim-benchmarks/BFS/`
+- DPU code: `./prim-benchmarks/BFS/dpu/task.c`
+- Host code: `ls ./prim-benchmarks/BFS/host/app.c`
 
 It turns out that BFS is one of the two benchmark examples that pay huge overhead of inter-DPU synchronization via the host CPU.
 
@@ -34,21 +150,23 @@ NR_DPUS=32 NR_TASKLETS=16 make all
 ./bin/host_code -v 0 -f ./data/loc-gowalla_edges.txt 
 ```
 
-To run BFS using the python script, which automatically test using different DPU and tasklet settings
+To run BFS using the python script. The python script is making experienments with different number of tasklets and DPUs settings.
 
 ```shell
 cd prim-benchmarks
+
 # run_strong can directly run, as it tests a fixed workload with different level of DPU resources. The fixed workload has been provided
 python run_strong_rank.py
+
 # you need to generate matGraph at first and then properly configure the file path
 # https://github.com/cmuparlay/pbbsbench/blob/master/testData/graphData/rMatGraph.C
 # run weak sims to increase workload with more resource given, so different level of input should be provided - which is not given by the suite
-python3 run_weak.py BFS
+# python3 run_weak.py BFS
 ```
 
-## 3 Something else 
+## 4 Something else 
 
-### 3.1 UPMEM 2025 SDK is not good to use with the benchmark 
+### 4.1 UPMEM 2025 SDK failed to work with the benchmark code
 
 After setup with UPMEM 2025 SDK, compile `BFS` host program fail with following output. UPMEM 2024 SDK does not have this problem.
 
