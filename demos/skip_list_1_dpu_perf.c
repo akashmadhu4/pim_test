@@ -5,11 +5,13 @@
 #include <defs.h>
 #include <alloc.h>
 #include <stdint.h>
+#include <perfcounter.h>
 
 
 #define MAX_LEVEL 6
 #define INSERT 0
 #define SEARCH 1
+#define DELETE 2
 #define MRAM_HEAP_SIZE (8 * 1024 * 1024)
 
 
@@ -23,6 +25,7 @@ int insert( __mram_ptr struct SkipList *, uint64_t);
 int getRandomLevel(void);
 
 __host uint64_t results[NUM_COMMANDS]={0};
+__host uint64_t nb_cycles;
 
 
 
@@ -114,6 +117,9 @@ int insert(__mram_ptr struct SkipList * lst , uint64_t key){
     }
     
     __mram_ptr struct Node *newNode = createNode(key, newLevel+1);
+    if(newNode == NULL){
+        return 0;
+    }
     for (int i = 0; i <= newLevel; i++) {
             newNode->next[i] = update[i]->next[i];
             update[i]->next[i] = newNode;
@@ -123,9 +129,27 @@ int insert(__mram_ptr struct SkipList * lst , uint64_t key){
     
 }
 
-// int delete(__mram_ptr struct SkipList * lst , uint64_t key){
+int delete(__mram_ptr struct SkipList * lst , uint64_t key){
+    __mram_ptr struct Node *update[MAX_LEVEL];
+    __mram_ptr struct Node *curr = lst->head;
 
-// }
+    for (int i = lst->level; i >= 0; i--) {
+        while (curr->next[i] != NULL && curr->next[i]->key < key) {
+            curr = curr->next[i];
+        }
+        update[i] = curr;
+    }
+
+    __mram_ptr struct Node *target = curr->next[0];
+    if (target && target->key == key){
+        for (int i = 0; i < MAX_LEVEL; i++) {
+            if (update[i]->next[i] != target) break;
+            update[i]->next[i] = target->next[i];
+        }
+        return 1;
+    }
+    return 0;
+}
 
 int search(__mram_ptr struct SkipList* lst, uint64_t key){
     __mram_ptr struct Node * curr = lst->head;
@@ -170,6 +194,8 @@ int main() {
  
    __mram_ptr struct SkipList *list = initializeSkipList();
 
+   perfcounter_config(COUNT_CYCLES, true);
+
     for (int i = 0; i < NUM_COMMANDS; i++) {
         switch (commands[i]) {
             case INSERT:
@@ -178,13 +204,17 @@ int main() {
             case SEARCH:
                 results[i] = search(list, keys[i]);
                 break;
+            case DELETE:
+                results[i] = delete(list, keys[i]);
             default:
-                results[i] = -1;
+                results[i] = -1; 
         }
     }
   
-  //mram_write(results, (__mram_ptr void*)(DPU_MRAM_HEAP_POINTER + sizeof(commands) + sizeof(keys)), sizeof(results));
-    //mram_write(results, DPU_MRAM_HEAP_POINTER, sizeof(results));
+    nb_cycles = perfcounter_get();
+  
+    //mram_write(results, (__mram_ptr void*)(DPU_MRAM_HEAP_POINTER + sizeof(commands) + sizeof(keys)), sizeof(results));
+   
 
     return 0;
 }
