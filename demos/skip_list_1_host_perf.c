@@ -4,12 +4,12 @@
 #include <stdint.h>
 #include <time.h>
 
-#define DPU_BINARY "skip_list_dpu"
+#define DPU_BINARY "skip_list_dpu_perf"
 #define INSERT 0
 #define SEARCH 1
 #define DELETE 2
 
-#define NUM_COMMANDS 5
+#define NUM_COMMANDS 6
 
 static inline double my_clock(void) {
     struct timespec t;
@@ -22,8 +22,8 @@ int main() {
     DPU_ASSERT(dpu_alloc(1, NULL, &dpu_set));  
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 
-    uint64_t commands[NUM_COMMANDS] = {INSERT, INSERT, INSERT, INSERT,SEARCH};
-    uint64_t keys[NUM_COMMANDS] = {42, 10,5,1,5};
+    uint64_t commands[NUM_COMMANDS] = {INSERT, INSERT, INSERT, INSERT,INSERT, SEARCH};
+    uint64_t keys[NUM_COMMANDS] = {42, 20,5,1,10,5};
     uint64_t results[NUM_COMMANDS] ={0};
 
     DPU_ASSERT(dpu_copy_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, 0, commands, sizeof(commands)));
@@ -36,8 +36,8 @@ int main() {
     uint32_t nb_cycles;
     uint32_t clocks_per_sec;
     DPU_FOREACH(dpu_set, dpu) {
-        DPU_ASSERT(dpu_copy_from(dpu, "nb_cycles", 0, &nb_cycles, sizeof(uint32_t)));
-        //DPU_ASSERT(dpu_copy_from(dpu, "CLOCKS_PER_SEC", 0, &clocks_per_sec, sizeof(uint32_t)));
+        DPU_ASSERT(dpu_copy_from(dpu, "nb_cycles", 0, &nb_cycles, sizeof(uint64_t)));
+        DPU_ASSERT(dpu_copy_from(dpu, "CLOCKS_PER_SEC", 0, &clocks_per_sec, sizeof(uint32_t)));
     }
   
     printf("DPU cycles: %u\n", nb_cycles);

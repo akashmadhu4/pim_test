@@ -25,7 +25,7 @@ int insert( __mram_ptr struct SkipList *, uint64_t);
 int getRandomLevel(void);
 
 __host uint64_t results[NUM_COMMANDS]={0};
-__host uint64_t nb_cycles=0;
+
 
 
 
@@ -194,7 +194,6 @@ int main() {
  
    __mram_ptr struct SkipList *list = initializeSkipList();
 
-   perfcounter_config(COUNT_CYCLES, true);
 
     for (int i = 0; i < NUM_COMMANDS; i++) {
         switch (commands[i]) {
@@ -211,7 +210,6 @@ int main() {
         }
     }
   
-    nb_cycles = perfcounter_get();
   
     //mram_write(results, (__mram_ptr void*)(DPU_MRAM_HEAP_POINTER + sizeof(commands) + sizeof(keys)), sizeof(results));
    
